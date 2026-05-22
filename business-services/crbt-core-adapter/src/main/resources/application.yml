@@ -38,7 +38,11 @@ resilience4j:
     instances:
       mytone:
         max-attempts: 3
-        wait-duration: 2s
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException
 
 eureka:
   client:

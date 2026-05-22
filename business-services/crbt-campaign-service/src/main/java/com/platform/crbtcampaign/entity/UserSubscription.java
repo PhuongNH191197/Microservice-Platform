@@ -38,6 +38,9 @@ public class UserSubscription {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
+    @Column(name = "auto_renew", nullable = false)
+    private boolean autoRenew = true;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -49,6 +52,7 @@ public class UserSubscription {
         this.campaignPackage = campaignPackage;
         this.status = status;
         this.expiresAt = expiresAt;
+        this.autoRenew = true;
     }
 
     public Long getId() { return id; }
@@ -57,5 +61,8 @@ public class UserSubscription {
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
     public Instant getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public boolean isAutoRenew() { return autoRenew; }
+    public void setAutoRenew(boolean autoRenew) { this.autoRenew = autoRenew; }
     public Instant getCreatedAt() { return createdAt; }
 }

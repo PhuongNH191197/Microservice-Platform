@@ -5,8 +5,8 @@ import org.springframework.http.HttpStatus;
 
 public enum CampaignErrorCode implements ErrorCode {
     CAMPAIGN_NOT_FOUND("CAMPAIGN_NOT_FOUND", "Campaign not found", HttpStatus.NOT_FOUND),
-    PACKAGE_NOT_FOUND("PACKAGE_NOT_FOUND", "Package not found", HttpStatus.NOT_FOUND),
-    SUBSCRIPTION_NOT_FOUND("SUBSCRIPTION_NOT_FOUND", "Subscription not found", HttpStatus.NOT_FOUND);
+    CAMPAIGN_PACKAGE_NOT_FOUND("CAMPAIGN_PACKAGE_NOT_FOUND", "Package not found", HttpStatus.NOT_FOUND),
+    CAMPAIGN_SUBSCRIPTION_NOT_FOUND("CAMPAIGN_SUBSCRIPTION_NOT_FOUND", "Subscription not found", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

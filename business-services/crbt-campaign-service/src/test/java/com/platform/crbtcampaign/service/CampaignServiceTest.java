@@ -15,6 +15,7 @@ import com.platform.crbtcampaign.dto.request.CreatePackageRequest;
 import com.platform.crbtcampaign.dto.response.CampaignResponse;
 import com.platform.crbtcampaign.entity.Campaign;
 import com.platform.crbtcampaign.entity.CampaignPackage;
+import com.platform.crbtcampaign.entity.UserSubscription;
 import com.platform.crbtcampaign.repository.CampaignPackageRepository;
 import com.platform.crbtcampaign.repository.CampaignRepository;
 import com.platform.crbtcampaign.repository.UserSubscriptionRepository;
@@ -69,12 +70,29 @@ class CampaignServiceTest {
         Instant start = Instant.now().minus(1, ChronoUnit.DAYS);
         Instant end = Instant.now().plus(30, ChronoUnit.DAYS);
         Campaign campaign = new Campaign("Tet", "desc", Campaign.Status.ACTIVE, start, end);
+        // Price 50000 > 1000 -> 100 * 1.1 = 110 credits
         CampaignPackage pkg = new CampaignPackage(campaign, "VIP", new BigDecimal("50000"), 100, 30);
 
         when(packageRepository.findById(1L)).thenReturn(Optional.of(pkg));
 
         campaignService.subscribe(42L, 1L);
 
+        verify(rabbitTemplate).convertAndSend(eq(RmqExchanges.CREDIT_EVENTS), eq(RmqRoutingKeys.CREDIT_CHANGED), any(Object.class));
+    }
+
+    @Test
+    void renewSubscriptions_shouldRenewAndPublishEvents() {
+        Instant now = Instant.now();
+        Campaign campaign = new Campaign("Tet", "desc", Campaign.Status.ACTIVE, now.minus(5, ChronoUnit.DAYS), now.plus(30, ChronoUnit.DAYS));
+        CampaignPackage pkg = new CampaignPackage(campaign, "VIP", new BigDecimal("50000"), 100, 30);
+        UserSubscription sub = new UserSubscription(1L, pkg, UserSubscription.Status.ACTIVE, now.minus(1, ChronoUnit.HOURS));
+
+        when(subscriptionRepository.findAllByStatusAndAutoRenewAndExpiresAtBefore(any(), eq(true), any())).thenReturn(List.of(sub));
+
+        int renewed = campaignService.renewSubscriptions();
+
+        assertEquals(1, renewed);
+        verify(subscriptionRepository).save(sub);
         verify(rabbitTemplate).convertAndSend(eq(RmqExchanges.CREDIT_EVENTS), eq(RmqRoutingKeys.CREDIT_CHANGED), any(Object.class));
     }
 }

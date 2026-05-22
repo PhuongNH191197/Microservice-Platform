@@ -13,6 +13,8 @@ import com.platform.common.rmq.RmqRoutingKeys;
 import com.platform.common.rmq.event.AudioGeneratedEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -23,24 +25,30 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AudioGenerationService {
     private static final Logger log = LoggerFactory.getLogger(AudioGenerationService.class);
+    private static final String ACTIVE_JOBS_KEY = "audio_gen:active_jobs:user:";
+    private static final String JOB_PROGRESS_KEY = "audio_gen:job_progress:";
     private static final int MAX_ACTIVE_JOBS = 5;
 
     private final AudioJobRepository jobRepository;
     private final AiMediaWorkerClient aiClient;
     private final RabbitTemplate rabbitTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     public AudioGenerationService(AudioJobRepository jobRepository,
                                   AiMediaWorkerClient aiClient,
-                                  RabbitTemplate rabbitTemplate) {
+                                  RabbitTemplate rabbitTemplate,
+                                  StringRedisTemplate redisTemplate) {
         this.jobRepository = jobRepository;
         this.aiClient = aiClient;
         this.rabbitTemplate = rabbitTemplate;
+        this.redisTemplate = redisTemplate;
     }
 
     @Transactional
     public AudioJobResponse submitJob(Long userId, GenerateAudioRequest request) {
-        long active = jobRepository.countActiveJobsByUserId(userId);
-        if (active >= MAX_ACTIVE_JOBS) {
+        long active = redisTemplate.opsForValue().increment(ACTIVE_JOBS_KEY + userId, 1);
+        if (active > MAX_ACTIVE_JOBS) {
+            redisTemplate.opsForValue().decrement(ACTIVE_JOBS_KEY + userId);
             throw new BaseException(CommonErrorCode.COMMON_BAD_REQUEST, "Max " + MAX_ACTIVE_JOBS + " active jobs");
         }
         AudioJob job = new AudioJob(userId, request.prompt(), request.voiceId());
@@ -56,24 +64,34 @@ public class AudioGenerationService {
         try {
             job.setStatus(JobStatus.PROCESSING);
             jobRepository.save(job);
+            updateProgress(job.getId(), "Starting audio generation...");
 
-            byte[] audio = aiClient.generateTts(Map.of(
+            // T9.5 DIY Flow: Chorus + Separate + TTS
+            // Placeholder for actual audio data from request (not present in current DTO)
+            // For now, only TTS is implemented, full DIY flow requires audio upload in request
+            byte[] audioBytes = aiClient.generateTts(Map.of(
                 "text", job.getPrompt(),
                 "voice", job.getVoiceId() != null ? job.getVoiceId() : "vi-VN-HoaiMyNeural",
                 "output_format", "audio-24khz-48kbitrate-mono-mp3"
             ));
+            updateProgress(job.getId(), "TTS generation completed.");
 
-            String url = "minio://audio-bucket/" + jobId + ".mp3"; // placeholder; actual MinIO upload via FileService
+            // Simulate MinIO upload and get URL
+            String url = "minio://audio-bucket/" + job.getId() + ".mp3";
             job.setResultUrl(url);
             job.setStatus(JobStatus.COMPLETED);
             jobRepository.save(job);
 
             publishEvent(job);
+            redisTemplate.opsForValue().decrement(ACTIVE_JOBS_KEY + job.getUserId());
+            redisTemplate.delete(JOB_PROGRESS_KEY + job.getId());
         } catch (Exception e) {
             log.error("Job {} failed", jobId, e);
             job.setStatus(JobStatus.FAILED);
             job.setErrorMessage(e.getMessage());
             jobRepository.save(job);
+            redisTemplate.opsForValue().decrement(ACTIVE_JOBS_KEY + job.getUserId());
+            redisTemplate.delete(JOB_PROGRESS_KEY + job.getId());
         }
     }
 
@@ -89,6 +107,14 @@ public class AudioGenerationService {
             throw new BaseException(CommonErrorCode.COMMON_FORBIDDEN);
         }
         return toResponse(job);
+    }
+
+    public String getJobProgress(Long jobId) {
+        return redisTemplate.opsForValue().get(JOB_PROGRESS_KEY + jobId);
+    }
+
+    private void updateProgress(Long jobId, String message) {
+        redisTemplate.opsForValue().set(JOB_PROGRESS_KEY + jobId, message, 10, TimeUnit.MINUTES);
     }
 
     private void publishEvent(AudioJob job) {

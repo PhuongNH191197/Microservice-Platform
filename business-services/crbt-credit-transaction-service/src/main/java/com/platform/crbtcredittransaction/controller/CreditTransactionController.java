@@ -9,6 +9,9 @@ import com.platform.crbtcredittransaction.dto.response.CreditTransactionResponse
 import com.platform.crbtcredittransaction.service.CreditTransactionService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,5 +42,25 @@ public class CreditTransactionController {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"));
         return ApiResponse.success(creditTransactionService.query(userId, direction, reason, fromTs, toTs, pageable));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<String> exportCsv(
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String reason,
+            @RequestParam(required = false) Long fromTs,
+            @RequestParam(required = false) Long toTs) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new BaseException(CommonErrorCode.COMMON_UNAUTHORIZED);
+        }
+
+        String csv = creditTransactionService.exportCsv(userId, direction, reason, fromTs, toTs);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv"));
+        headers.setContentDispositionFormData("attachment", "credit_transactions.csv");
+
+        return ResponseEntity.ok().headers(headers).body(csv);
     }
 }

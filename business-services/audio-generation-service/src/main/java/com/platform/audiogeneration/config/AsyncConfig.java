@@ -10,9 +10,9 @@ public class AsyncConfig {
     @Bean(name = "audioJobExecutor")
     public Executor audioJobExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(50);
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(30);
+        executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("audio-job-");
         executor.initialize();
         return executor;

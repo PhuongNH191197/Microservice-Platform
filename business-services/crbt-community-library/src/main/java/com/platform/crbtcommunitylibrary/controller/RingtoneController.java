@@ -53,4 +53,9 @@ public class RingtoneController {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.success(ringtoneService.searchRingtones(q, categoryId, featured, pageable));
     }
+
+    @GetMapping("/ringtones/random")
+    public ApiResponse<RingtoneResponse> getRandom(@RequestParam(required = false) String genre) {
+        return ApiResponse.success(ringtoneService.getRandomRingtone(genre));
+    }
 }

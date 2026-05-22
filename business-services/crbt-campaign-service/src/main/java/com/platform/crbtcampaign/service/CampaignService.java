@@ -77,7 +77,7 @@ public class CampaignService {
     @Transactional
     public void subscribe(Long userId, Long packageId) {
         CampaignPackage pkg = packageRepository.findById(packageId)
-            .orElseThrow(() -> new BaseException(CampaignErrorCode.PACKAGE_NOT_FOUND));
+            .orElseThrow(() -> new BaseException(CampaignErrorCode.CAMPAIGN_PACKAGE_NOT_FOUND));
 
         if (pkg.getCampaign().getStatus() != Campaign.Status.ACTIVE ||
             pkg.getCampaign().getEndAt().isBefore(Instant.now())) {
@@ -95,13 +95,22 @@ public class CampaignService {
         // Notify Credit Wallet to add credits
         CreditChangedEvent event = new CreditChangedEvent(
             userId,
-            pkg.getCreditAmount(),
+            calculateCreditAmount(pkg),
             "IN",
             "Subscription: " + pkg.getName(),
             "SUB-" + UUID.randomUUID().toString(),
             System.currentTimeMillis()
         );
         rabbitTemplate.convertAndSend(RmqExchanges.CREDIT_EVENTS, RmqRoutingKeys.CREDIT_CHANGED, event);
+    }
+
+    private int calculateCreditAmount(CampaignPackage pkg) {
+        // Bonus rule engine (T8.3): +10% for packages > 1000 price
+        int base = pkg.getCreditAmount();
+        if (pkg.getPrice().doubleValue() >= 1000) {
+            return (int) (base * 1.1);
+        }
+        return base;
     }
 
     private CampaignResponse toCampaignResponse(Campaign campaign) {
@@ -124,5 +133,46 @@ public class CampaignService {
             pkg.getCreditAmount(),
             pkg.getValidityDays()
         );
+    }
+
+    /**
+     * Auto-renew subscriptions (T8.7)
+     * Called by scheduler at 00:00 daily
+     */
+    @Transactional
+    public int renewSubscriptions() {
+        Instant now = Instant.now();
+        List<UserSubscription> expiring = subscriptionRepository
+            .findAllByStatusAndAutoRenewAndExpiresAtBefore(UserSubscription.Status.ACTIVE, true, now);
+
+        int renewed = 0;
+        for (UserSubscription sub : expiring) {
+            try {
+                CampaignPackage pkg = sub.getCampaignPackage();
+
+                // Extend expiry
+                sub.setExpiresAt(now.plus(pkg.getValidityDays(), ChronoUnit.DAYS));
+                subscriptionRepository.save(sub);
+
+                // Grant credits with bonus
+                int creditAmount = calculateCreditAmount(pkg);
+                CreditChangedEvent event = new CreditChangedEvent(
+                    sub.getUserId(),
+                    creditAmount,
+                    "IN",
+                    "Auto-renewal: " + pkg.getName(),
+                    "RENEW-" + UUID.randomUUID().toString(),
+                    System.currentTimeMillis()
+                );
+                rabbitTemplate.convertAndSend(RmqExchanges.CREDIT_EVENTS, RmqRoutingKeys.CREDIT_CHANGED, event);
+
+                renewed++;
+            } catch (Exception e) {
+                // Log but continue with other subscriptions
+                System.err.println("Failed to renew subscription " + sub.getId() + ": " + e.getMessage());
+            }
+        }
+
+        return renewed;
     }
 }

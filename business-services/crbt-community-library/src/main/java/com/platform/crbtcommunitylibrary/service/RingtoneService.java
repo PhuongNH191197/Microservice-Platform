@@ -14,6 +14,8 @@ import com.platform.crbtcommunitylibrary.repository.RingtoneRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -58,6 +60,7 @@ public class RingtoneService {
         return toRingtoneResponse(ringtoneRepository.save(ringtone));
     }
 
+    @Cacheable(value = "ringtones", key = "{#query, #categoryId, #featured, #pageable.pageNumber, #pageable.pageSize}")
     @Transactional(readOnly = true)
     public PageResponse<RingtoneResponse> searchRingtones(
         String query,
@@ -84,6 +87,17 @@ public class RingtoneService {
         };
 
         return PageResponse.from(ringtoneRepository.findAll(spec, pageable).map(this::toRingtoneResponse));
+    }
+
+    @Transactional(readOnly = true)
+    public RingtoneResponse getRandomRingtone(String genre) {
+        // T7.11: if genre specified and found, return it; otherwise fall back to global random
+        Optional<Ringtone> ringtone = (genre != null && !genre.isBlank())
+            ? ringtoneRepository.findRandomByGenre(genre).or(ringtoneRepository::findRandom)
+            : ringtoneRepository.findRandom();
+
+        return ringtone.map(this::toRingtoneResponse)
+            .orElseThrow(() -> new BaseException(CommonErrorCode.COMMON_NOT_FOUND));
     }
 
     private CategoryResponse toCategoryResponse(Category category) {

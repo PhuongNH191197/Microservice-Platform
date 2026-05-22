@@ -48,10 +48,35 @@ public class CreditTransactionService {
         Pageable pageable
     ) {
         if (fromTs != null && toTs != null && fromTs > toTs) {
-            throw new BaseException(CreditTransactionErrorCode.INVALID_DATE_RANGE);
+            throw new BaseException(CreditTransactionErrorCode.CREDIT_TRANSACTION_INVALID_DATE_RANGE);
         }
 
         return PageResponse.from(repository.findAll(filter(userId, direction, reason, fromTs, toTs), pageable).map(this::toResponse));
+    }
+
+    @Transactional(readOnly = true)
+    public String exportCsv(Long userId, String direction, String reason, Long fromTs, Long toTs) {
+        if (fromTs != null && toTs != null && fromTs > toTs) {
+            throw new BaseException(CreditTransactionErrorCode.CREDIT_TRANSACTION_INVALID_DATE_RANGE);
+        }
+
+        List<CreditTransaction> transactions = repository.findAll(filter(userId, direction, reason, fromTs, toTs));
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID,User ID,Amount,Direction,Reason,Reference ID,Timestamp,Created At\n");
+
+        for (CreditTransaction tx : transactions) {
+            csv.append(tx.getId()).append(",")
+               .append(tx.getUserId()).append(",")
+               .append(tx.getAmount()).append(",")
+               .append(tx.getDirection()).append(",")
+               .append("\"").append(tx.getReason()).append("\"").append(",")
+               .append(tx.getReferenceId()).append(",")
+               .append(tx.getTimestamp()).append(",")
+               .append(tx.getCreatedAt()).append("\n");
+        }
+
+        return csv.toString();
     }
 
     private Specification<CreditTransaction> filter(

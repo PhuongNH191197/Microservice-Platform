@@ -41,4 +41,18 @@ class CreditTransactionServiceTest {
             service.query(1L, null, null, 1000L, 500L, null)
         );
     }
+
+    @Test
+    void exportCsv_shouldReturnCsvString() {
+        when(repository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
+            .thenReturn(java.util.List.of(
+                new CreditTransaction(1L, 100, "IN", "Reason", "REF-1", 1000L)
+            ));
+
+        String csv = service.exportCsv(1L, null, null, null, null);
+
+        assertNotNull(csv);
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains("ID,User ID,Amount,Direction,Reason,Reference ID,Timestamp,Created At"));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains("1,100,IN,\"Reason\",REF-1,1000"));
+    }
 }

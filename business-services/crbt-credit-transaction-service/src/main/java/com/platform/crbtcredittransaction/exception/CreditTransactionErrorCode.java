@@ -4,7 +4,7 @@ import com.platform.common.core.exception.ErrorCode;
 import org.springframework.http.HttpStatus;
 
 public enum CreditTransactionErrorCode implements ErrorCode {
-    INVALID_DATE_RANGE("CREDIT_TRANSACTION_INVALID_DATE_RANGE", "fromTs must be before toTs", HttpStatus.BAD_REQUEST);
+    CREDIT_TRANSACTION_INVALID_DATE_RANGE("CREDIT_TRANSACTION_INVALID_DATE_RANGE", "fromTs must be before toTs", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

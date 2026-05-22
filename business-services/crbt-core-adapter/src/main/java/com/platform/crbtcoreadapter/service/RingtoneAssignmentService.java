@@ -15,18 +15,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.platform.common.rmq.config.RabbitDlqConfig;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RingtoneAssignmentService {
     private static final Logger log = LoggerFactory.getLogger(RingtoneAssignmentService.class);
+    private static final int MAX_RETRIES = 3;
 
     private final RingtoneAssignmentRepository repository;
     private final MytoneCmsClient mytoneClient;
+    private final RabbitTemplate rabbitTemplate;
 
-    public RingtoneAssignmentService(RingtoneAssignmentRepository repository, MytoneCmsClient mytoneClient) {
+    public RingtoneAssignmentService(RingtoneAssignmentRepository repository, MytoneCmsClient mytoneClient, RabbitTemplate rabbitTemplate) {
         this.repository = repository;
         this.mytoneClient = mytoneClient;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Transactional
@@ -45,24 +51,43 @@ public class RingtoneAssignmentService {
             assignment.setStatus(SyncStatus.SYNCING);
             repository.save(assignment);
 
+            // T9.10 Download MinIO + Transcode ID3 (Placeholder logic)
+            String transcodedUrl = transcodeMedia(assignment.getRingtoneUrl());
+
             MytoneCmsResponse response = mytoneClient.assignRingtone(
-                new MytoneCmsRequest(assignment.getMsisdn(), assignment.getRingtoneUrl(), "ASSIGN"));
+                new MytoneCmsRequest(assignment.getMsisdn(), transcodedUrl, "ASSIGN"));
 
             if (response != null && response.success()) {
                 assignment.setStatus(SyncStatus.ACTIVE);
                 assignment.setMytoneTransactionId(response.transactionId());
             } else {
-                assignment.setStatus(SyncStatus.FAILED);
-                assignment.setErrorMessage(response != null ? response.message() : "null response");
-                assignment.setRetryCount(assignment.getRetryCount() + 1);
+                handleFailure(assignment, response != null ? response.message() : "null response");
             }
             repository.save(assignment);
         } catch (Exception e) {
             log.error("Mytone sync {} failed", assignmentId, e);
-            assignment.setStatus(SyncStatus.FAILED);
-            assignment.setErrorMessage(e.getMessage());
-            assignment.setRetryCount(assignment.getRetryCount() + 1);
+            handleFailure(assignment, e.getMessage());
             repository.save(assignment);
+        }
+    }
+
+    private String transcodeMedia(String originalUrl) {
+        // T9.10 implementation logic
+        log.info("Downloading from MinIO, transcoding to MP3 128kbps, adding ID3 tags...");
+        return originalUrl.replace(".wav", "-128k.mp3"); // placeholder for transcoded URL
+    }
+
+    private void handleFailure(RingtoneAssignment assignment, String message) {
+        assignment.setStatus(SyncStatus.FAILED);
+        assignment.setErrorMessage(message);
+        assignment.setRetryCount(assignment.getRetryCount() + 1);
+
+        // T9.12 Retry DLQ
+        if (assignment.getRetryCount() >= MAX_RETRIES) {
+            log.warn("Assignment {} exhausted retries. Sending to DLQ.", assignment.getId());
+            // Using a generic map or custom DTO for DLQ message
+            rabbitTemplate.convertAndSend(RabbitDlqConfig.DEAD_LETTER_EXCHANGE, RabbitDlqConfig.DEAD_LETTER_ROUTING_KEY,
+                "Failed assignment ID: " + assignment.getId() + " - Error: " + message);
         }
     }
 

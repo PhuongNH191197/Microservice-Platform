@@ -71,4 +71,29 @@ class RingtoneServiceTest {
         assertEquals("Artist", response.artistName());
         assertNotNull(response.category());
     }
+
+    @Test
+    void getRandomRingtone_shouldReturnRingtoneByGenre() {
+        Category category = new Category("Pop", "Pop music");
+        Ringtone ringtone = new Ringtone("Song", "Artist", "http://url", null, 180, false, category);
+        when(ringtoneRepository.findRandomByGenre("Pop")).thenReturn(Optional.of(ringtone));
+
+        RingtoneResponse response = ringtoneService.getRandomRingtone("Pop");
+
+        assertNotNull(response);
+        assertEquals("Song", response.title());
+    }
+
+    @Test
+    void getRandomRingtone_shouldFallbackToGlobalRandomIfGenreNotFound() {
+        Category category = new Category("Rock", "Rock music");
+        Ringtone ringtone = new Ringtone("Song", "Artist", "http://url", null, 180, false, category);
+        when(ringtoneRepository.findRandomByGenre("Pop")).thenReturn(Optional.empty());
+        when(ringtoneRepository.findRandom()).thenReturn(Optional.of(ringtone));
+
+        RingtoneResponse response = ringtoneService.getRandomRingtone("Pop");
+
+        assertNotNull(response);
+        assertEquals("Rock", response.category().name());
+    }
 }
