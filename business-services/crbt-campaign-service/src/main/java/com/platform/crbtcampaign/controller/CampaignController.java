@@ -21,6 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class CampaignController {
 
     private final CampaignService campaignService;
+    private final LyriaService lyriaService;
+
+    public CampaignController(CampaignService campaignService, LyriaService lyriaService) {
+        this.campaignService = campaignService;
+        this.lyriaService = lyriaService;
+    }
 
     public CampaignController(CampaignService campaignService) {
         this.campaignService = campaignService;
@@ -44,5 +50,12 @@ public class CampaignController {
         }
         campaignService.subscribe(userId, request.packageId());
         return ApiResponse.success(null);
+    }
+
+    @PostMapping("/generate")
+    public ApiResponse<byte[]> generate(@RequestParam String genre, 
+                                       @RequestParam String mood, 
+                                       @RequestParam String instrument) {
+        return ApiResponse.success(lyriaService.generateMusic(genre, mood, instrument));
     }
 }
