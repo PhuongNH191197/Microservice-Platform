@@ -1,49 +1,52 @@
 # ============================================================
-# Script khởi động Microservice Platform - HỖ TRỢ LOAD .ENV
+# Script khởi động Microservice Platform - CLEAN VERSION
 # ============================================================
 
 Write-Host "=== MICROSERVICE PLATFORM - LOCALHOST STARTUP ===" -ForegroundColor Cyan
 
-# --- BƯỚC 0: LOAD BIẾN MÔI TRƯỜNG TỪ FILE .ENV ---
+# --- BƯỚC 0: LOAD BIẾN MÔI TRƯỜNG VÀO PROCESS CHA ---
 if (Test-Path ".env") {
     Write-Host "`n[0/5] Loading environment variables from .env..." -ForegroundColor Yellow
     foreach ($line in Get-Content .env) {
         if ($line -match '^([^#\s][^=]*)=(.*)$') {
             $key = $matches[1].Trim()
             $value = $matches[2].Trim().Trim('"').Trim("'")
-            [System.Environment]::SetEnvironmentVariable($key, $value, [System.EnvironmentVariableTarget]::Process)
-            # Write-Host "  Loaded: $key" -ForegroundColor Gray
+            $env:$key = $value  # Set trực tiếp vào process hiện tại
         }
     }
-    Write-Host "  .env loaded successfully!" -ForegroundColor Green
-} else {
-    Write-Host "  Warning: .env file not found!" -ForegroundColor Red
+    Write-Host "  .env loaded! All child windows will inherit these variables." -ForegroundColor Green
 }
 
 # Bước 1: Khởi động hạ tầng Docker
 Write-Host "`n[1/5] Starting infrastructure (Postgres, Redis, RabbitMQ, MinIO)..." -ForegroundColor Yellow
 docker-compose up -d postgres redis rabbitmq minio
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 5
 
-# Bước 2: Build project (Dùng mvn nếu có, hoặc báo lỗi nếu không)
+# Bước 2: Build project
 Write-Host "`n[2/5] Building all Maven modules..." -ForegroundColor Yellow
-mvn clean install -DskipTests
+# Thử dùng mvnw nếu có, không thì dùng mvn
+$mvn = if (Test-Path "mvnw.cmd") { "./mvnw.cmd" } else { "mvn" }
+& $mvn clean install -DskipTests
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed. If 'mvn' is not found, please install it or build in IntelliJ first." -ForegroundColor Red
+    Write-Host "Build failed. Please ensure Maven is installed or build in IntelliJ first." -ForegroundColor Red
     exit 1
 }
 
-# Bước 3: Khởi động Eureka
-Write-Host "`n[3/5] Starting Eureka Server (port 8761)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; foreach (`$line in Get-Content .env) { if (`$line -match '^([^#\s][^=]*)=(.*)$') { [System.Environment]::SetEnvironmentVariable(`$matches[1].Trim(), `$matches[2].Trim().Trim('`\"').Trim('\''), [System.EnvironmentVariableTarget]::Process) } }; mvn spring-boot:run -pl infrastructure/eureka-server"
-Start-Sleep -Seconds 20
+# Hàm helper để khởi động service (tự động kế thừa $env)
+function Run-Service($module, $wait = 3) {
+    Write-Host "  -> Launching $module..." -ForegroundColor Gray
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; $mvn spring-boot:run -pl $module"
+    Start-Sleep -Seconds $wait
+}
 
-# Bước 4: Khởi động Config Server
-Write-Host "`n[4/5] Starting Config Server (port 8888)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; foreach (`$line in Get-Content .env) { if (`$line -match '^([^#\s][^=]*)=(.*)$') { [System.Environment]::SetEnvironmentVariable(`$matches[1].Trim(), `$matches[2].Trim().Trim('`\"').Trim('\''), [System.EnvironmentVariableTarget]::Process) } }; mvn spring-boot:run -pl infrastructure/config-server"
-Start-Sleep -Seconds 15
+# Bước 3: Khởi động theo thứ tự
+Write-Host "`n[3/5] Starting Eureka Server..." -ForegroundColor Yellow
+Run-Service "infrastructure/eureka-server" 20
 
-# Bước 5: Các service còn lại (Logic tương tự, inject .env vào từng window)
+Write-Host "`n[4/5] Starting Config Server..." -ForegroundColor Yellow
+Run-Service "infrastructure/config-server" 15
+
+Write-Host "`n[5/5] Starting All Other Services..." -ForegroundColor Yellow
 $services = @(
     "infra-services/auth-service",
     "infra-services/credit-wallet-service",
@@ -58,15 +61,17 @@ $services = @(
     "business-services/crbt-core-adapter"
 )
 
-Write-Host "`n[5/5] Starting Services..." -ForegroundColor Yellow
-foreach ($s in $services) {
-    Write-Host "  -> Launching $s..." -ForegroundColor Gray
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; foreach (`$line in Get-Content .env) { if (`$line -match '^([^#\s][^=]*)=(.*)$') { [System.Environment]::SetEnvironmentVariable(`$matches[1].Trim(), `$matches[2].Trim().Trim('`\"').Trim('\''), [System.EnvironmentVariableTarget]::Process) } }; mvn spring-boot:run -pl $s"
-    Start-Sleep -Seconds 3
+foreach ($s in $services) { Run-Service $s 2 }
+
+Start-Sleep -Seconds 10
+Write-Host "`nFinal: Starting API Gateway..." -ForegroundColor Yellow
+Run-Service "infrastructure/api-gateway"
+
+# Khởi động Python AI Worker
+if (Test-Path "python-services/ai-media-worker") {
+    Write-Host "`nStarting Python AI Worker..." -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD/python-services/ai-media-worker'; uvicorn main:app --host 0.0.0.0 --port 8765 --reload"
 }
 
-# API Gateway sau cùng
-Write-Host "`nFinal: Starting API Gateway..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; foreach (`$line in Get-Content .env) { if (`$line -match '^([^#\s][^=]*)=(.*)$') { [System.Environment]::SetEnvironmentVariable(`$matches[1].Trim(), `$matches[2].Trim().Trim('`\"').Trim('\''), [System.EnvironmentVariableTarget]::Process) } }; mvn spring-boot:run -pl infrastructure/api-gateway"
-
-Write-Host "`n=== ALL SERVICES INJECTED WITH .ENV AND STARTED ===" -ForegroundColor Green
+Write-Host "`n=== SYSTEM STARTUP INITIATED ===" -ForegroundColor Green
+Write-Host "All windows will inherit .env from this session." -ForegroundColor Cyan
