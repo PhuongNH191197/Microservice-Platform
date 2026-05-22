@@ -11,7 +11,7 @@ if (Test-Path ".env") {
         if ($line -match '^([^#\s][^=]*)=(.*)$') {
             $key = $matches[1].Trim()
             $value = $matches[2].Trim().Trim('"').Trim("'")
-            $env:$key = $value  # Set trực tiếp vào process hiện tại
+            Set-Item -Path "Env:$key" -Value $value
         }
     }
     Write-Host "  .env loaded! All child windows will inherit these variables." -ForegroundColor Green
@@ -25,17 +25,23 @@ Start-Sleep -Seconds 5
 # Bước 2: Build project
 Write-Host "`n[2/5] Building all Maven modules..." -ForegroundColor Yellow
 # Thử dùng mvnw nếu có, không thì dùng mvn
-$mvn = if (Test-Path "mvnw.cmd") { "./mvnw.cmd" } else { "mvn" }
-& $mvn clean install -DskipTests
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed. Please ensure Maven is installed or build in IntelliJ first." -ForegroundColor Red
+$mvn = if (Test-Path "mvnw.cmd") { ".\mvnw.cmd" } else { "mvn" }
+
+try {
+    & $mvn clean install -DskipTests
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build failed. Please check errors above." -ForegroundColor Red
+        exit 1
+    }
+} catch {
+    Write-Host "Maven not found. Please ensure Maven is installed (winget install Apache.Maven) or build in IntelliJ first." -ForegroundColor Red
     exit 1
 }
 
 # Hàm helper để khởi động service (tự động kế thừa $env)
 function Run-Service($module, $wait = 3) {
     Write-Host "  -> Launching $module..." -ForegroundColor Gray
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; $mvn spring-boot:run -pl $module"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd `"$PWD`"; & $mvn spring-boot:run -pl $module"
     Start-Sleep -Seconds $wait
 }
 
