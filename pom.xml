@@ -30,6 +30,7 @@
         <minio.version>8.5.10</minio.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <flyway.version>9.22.3</flyway.version>
+        <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
     <modules>
@@ -110,6 +111,16 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${minio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

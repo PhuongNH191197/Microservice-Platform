@@ -47,3 +47,36 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /auth-service/v3/api-docs
+      - name: credit-wallet-service
+        url: /credit-wallet-service/v3/api-docs
+      - name: notification-service
+        url: /notification-service/v3/api-docs
+      - name: file-service
+        url: /file-service/v3/api-docs
+      - name: audit-log-service
+        url: /audit-log-service/v3/api-docs
+      - name: payment-gateway-service
+        url: /payment-gateway-service/v3/api-docs
+      - name: crbt-campaign-service
+        url: /crbt-campaign-service/v3/api-docs
+      - name: crbt-community-library
+        url: /crbt-community-library/v3/api-docs
+      - name: audio-generation-service
+        url: /audio-generation-service/v3/api-docs
+      - name: crbt-credit-transaction-service
+        url: /crbt-credit-transaction-service/v3/api-docs
+      - name: crbt-core-adapter
+        url: /crbt-core-adapter/v3/api-docs
