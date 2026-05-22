@@ -1,0 +1,11 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE file_db;
+CREATE DATABASE payment_db;
+CREATE DATABASE wallet_db;
+CREATE DATABASE audit_db;
+CREATE DATABASE notification_db;
+CREATE DATABASE campaign_db;
+CREATE DATABASE community_db;
+CREATE DATABASE audio_gen_db;
+CREATE DATABASE credit_tx_db;
+CREATE DATABASE adapter_db;
