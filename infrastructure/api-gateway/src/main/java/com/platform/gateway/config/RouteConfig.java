@@ -13,6 +13,8 @@ public class RouteConfig {
         return builder.routes()
                 // API Routes
                 .route("auth-service", r -> r.path("/api/auth/**").uri("lb://auth-service"))
+                .route("notification-service", r -> r.path("/api/notifications/**").uri("lb://notification-service"))
+                .route("audit-log-service", r -> r.path("/api/audit-logs/**").uri("lb://audit-log-service"))
                 .route("file-service", r -> r.path("/api/files/**").uri("lb://file-service"))
                 .route("payment-gateway-service", r -> r.path("/api/payments/**").uri("lb://payment-gateway-service"))
                 .route("credit-wallet-service", r -> r.path("/api/wallet/**").uri("lb://credit-wallet-service"))
@@ -24,6 +26,8 @@ public class RouteConfig {
 
                 // Swagger UI Routes
                 .route("auth-swagger", r -> r.path("/auth-service/v3/api-docs").filters(f -> f.rewritePath("/auth-service/(?<segment>.*)", "/${segment}")).uri("lb://auth-service"))
+                .route("notification-swagger", r -> r.path("/notification-service/v3/api-docs").filters(f -> f.rewritePath("/notification-service/(?<segment>.*)", "/${segment}")).uri("lb://notification-service"))
+                .route("audit-log-swagger", r -> r.path("/audit-log-service/v3/api-docs").filters(f -> f.rewritePath("/audit-log-service/(?<segment>.*)", "/${segment}")).uri("lb://audit-log-service"))
                 .route("file-swagger", r -> r.path("/file-service/v3/api-docs").filters(f -> f.rewritePath("/file-service/(?<segment>.*)", "/${segment}")).uri("lb://file-service"))
                 .route("payment-swagger", r -> r.path("/payment-gateway-service/v3/api-docs").filters(f -> f.rewritePath("/payment-gateway-service/(?<segment>.*)", "/${segment}")).uri("lb://payment-gateway-service"))
                 .route("wallet-swagger", r -> r.path("/credit-wallet-service/v3/api-docs").filters(f -> f.rewritePath("/credit-wallet-service/(?<segment>.*)", "/${segment}")).uri("lb://credit-wallet-service"))
@@ -32,6 +36,7 @@ public class RouteConfig {
                 .route("audio-swagger", r -> r.path("/audio-generation-service/v3/api-docs").filters(f -> f.rewritePath("/audio-generation-service/(?<segment>.*)", "/${segment}")).uri("lb://audio-generation-service"))
                 .route("credit-transaction-swagger", r -> r.path("/crbt-credit-transaction-service/v3/api-docs").filters(f -> f.rewritePath("/crbt-credit-transaction-service/(?<segment>.*)", "/${segment}")).uri("lb://crbt-credit-transaction-service"))
                 .route("core-adapter-swagger", r -> r.path("/crbt-core-adapter/v3/api-docs").filters(f -> f.rewritePath("/crbt-core-adapter/(?<segment>.*)", "/${segment}")).uri("lb://crbt-core-adapter"))
+
                 .build();
     }
 }
