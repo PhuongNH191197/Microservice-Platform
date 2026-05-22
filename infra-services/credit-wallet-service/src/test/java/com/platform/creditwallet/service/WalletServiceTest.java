@@ -82,7 +82,7 @@ class WalletServiceTest {
         WalletResponse response = walletService.deductCredit(1L, 20, "consume", "ref-1");
 
         assertThat(response.balance()).isEqualTo(30);
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
         verify(rLock).unlock();
     }
 
@@ -141,7 +141,7 @@ class WalletServiceTest {
         WalletResponse response = walletService.addCredit(2L, 5, "top_up", "txn-1");
 
         assertThat(response.balance()).isEqualTo(15);
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
         verify(rLock).unlock();
     }
 

@@ -50,7 +50,7 @@ class PaymentServiceTest {
         PaymentResponse response = paymentService.charge(1L, "959123", request);
 
         assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS);
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test
@@ -77,7 +77,7 @@ class PaymentServiceTest {
         PaymentResponse response = paymentService.charge(1L, "959123", request);
 
         assertThat(response.status()).isEqualTo(PaymentStatus.FAILED);
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test

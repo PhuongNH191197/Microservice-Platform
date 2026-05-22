@@ -8,13 +8,11 @@ import com.platform.crbtcampaign.dto.request.CreateCampaignRequest;
 import com.platform.crbtcampaign.dto.request.SubscribePackageRequest;
 import com.platform.crbtcampaign.dto.response.CampaignResponse;
 import com.platform.crbtcampaign.service.CampaignService;
+import com.platform.crbtcampaign.service.LyriaService;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/campaigns")
@@ -26,10 +24,6 @@ public class CampaignController {
     public CampaignController(CampaignService campaignService, LyriaService lyriaService) {
         this.campaignService = campaignService;
         this.lyriaService = lyriaService;
-    }
-
-    public CampaignController(CampaignService campaignService) {
-        this.campaignService = campaignService;
     }
 
     @PostMapping

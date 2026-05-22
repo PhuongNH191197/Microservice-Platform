@@ -63,7 +63,7 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isNotBlank();
         assertThat(response.refreshToken()).isNotBlank();
         assertThat(response.tokenType()).isEqualTo("Bearer");
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test
@@ -154,7 +154,7 @@ class AuthServiceTest {
 
         authService.forgotPassword(new ForgotPasswordRequest("known@test.com"));
 
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test
@@ -190,7 +190,7 @@ class AuthServiceTest {
         User result = authService.lazyCreateSubscriber("+959000000001");
 
         assertThat(result.getCreditBalance()).isEqualTo(2);
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     // --- helpers ---
