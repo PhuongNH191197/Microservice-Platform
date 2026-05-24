@@ -35,6 +35,10 @@ fail()  { echo -e "  ${RED}[FAIL]${NC} $*"; exit 1; }
 skip()  { echo -e "  ${YELLOW}[SKIP]${NC} $*"; }
 info()  { echo -e "  ${GRAY}$*${NC}"; }
 
+# Java 21
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+
 # --- 0. Prerequisites ---
 step "Kiem tra prerequisites"
 
