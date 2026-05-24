@@ -99,7 +99,7 @@ services:
     image: grafana/loki:2.9.4
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+    entrypoint: sh -c "mkdir -p /loki/index /loki/index_cache /loki/chunks && /usr/bin/loki -config.file=/etc/loki/local-config.yaml"
     volumes:
       - loki_data:/loki
       - ./infrastructure/monitoring-server/loki-config.yaml:/etc/loki/local-config.yaml
@@ -127,7 +127,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8761/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -139,13 +139,13 @@ services:
     ports:
       - "8888:8888"
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: native,docker
       EUREKA_HOST: eureka-server
     depends_on:
       eureka-server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -160,6 +160,10 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
+      REDIS_HOST: redis
+      JWT_SECRET: platform-jwt-secret-for-dev-only-change-in-production
+      CRBT_SHARED_SECRET: crbt-shared-secret-dev
+      CRBT_VERIFY_ENDPOINT: http://localhost/crbt/verify
     depends_on:
       config-server:
         condition: service_healthy
@@ -175,10 +179,17 @@ services:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      JWT_SECRET: platform-jwt-secret-for-dev-only-change-in-production
+      CRBT_SHARED_SECRET: crbt-shared-secret-dev
+      CRBT_VERIFY_ENDPOINT: http://localhost/crbt/verify
     depends_on:
       config-server:
         condition: service_healthy
@@ -197,7 +208,9 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy
@@ -212,7 +225,9 @@ services:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
       MINIO_ENDPOINT: http://minio:9000
@@ -232,10 +247,14 @@ services:
       - "8084:8084"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy
@@ -252,10 +271,14 @@ services:
       - "8085:8085"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy
@@ -272,10 +295,14 @@ services:
       - "8086:8086"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
       REDIS_HOST: redis
     depends_on:
       config-server:
@@ -296,10 +323,14 @@ services:
       - "8090:8090"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy
@@ -316,13 +347,18 @@ services:
       - "8091:8091"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
+      REDIS_HOST: redis
     depends_on:
       config-server:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   audio-generation-service:
@@ -333,17 +369,28 @@ services:
       - "8092:8092"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
       RABBIT_HOST: rabbitmq
+      RABBIT_USER: guest
+      RABBIT_PASSWORD: guest
+      REDIS_HOST: redis
       AI_WORKER_HOST: ai-media-worker
+      AUDIO_GEN_DB: audio_gen_db
     depends_on:
       config-server:
         condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   crbt-credit-transaction-service:
@@ -354,10 +401,14 @@ services:
       - "8093:8093"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
-      RABBIT_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy
@@ -375,9 +426,16 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
       RABBIT_HOST: rabbitmq
+      RABBIT_USER: guest
+      RABBIT_PASSWORD: guest
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       config-server:
         condition: service_healthy

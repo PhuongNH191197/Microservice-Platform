@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy protobuf definitions and generate stubs
 COPY proto ./proto
 COPY scripts ./scripts
-RUN python scripts/generate_protos.py
+RUN mkdir -p generated && python scripts/generate_protos.py
 
 # Copy the rest of the application code
 COPY . .
